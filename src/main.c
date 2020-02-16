@@ -129,7 +129,7 @@ int main(void)
   MX_CAN1_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-
+  initRTOSObjects();
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
