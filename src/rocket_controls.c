@@ -4,6 +4,16 @@
 
 #include "rocket.h"
 
+void initRTOSObjects()
+{
+    QueueHandle_t tx_queue = xQueueCreate(40, sizeof(CanTxMsgTypeDef)); //Change 40 to defined constant
+    QueueHandle_t rx_queue = xQueueCreate(40, sizeof(CanTxMsgTypeDef));
+    
+    xTaskCreate(accelTask, "Accelerometer Driver", 256, NULL, 1, NULL); //Change 256 and 1 to defines and determine proper values
+    xTaskCreate(barometerTask, "Barometer Driver", 256, NULL, 1, NULL);
+    xTaskCreate(gpsTask, "GPS Driver", 256, NULL, 1, NULL);
+}
+
 /*
     Init State -> Initializing the rocket, setting parameters, self testing sensors, calibrating servo position
 */
