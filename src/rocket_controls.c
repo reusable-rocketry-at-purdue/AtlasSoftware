@@ -4,6 +4,12 @@
 
 #include "rocket.h"
 
+typedef struct {
+    int accel[3]; // acceleration in the x, y, and z directions
+    int baro; // barometric values
+    int gps; // values from GPS
+}
+
 void initRTOSObjects()
 {
     QueueHandle_t tx_queue = xQueueCreate(40, sizeof(CanTxMsgTypeDef)); //Change 40 to defined constant
