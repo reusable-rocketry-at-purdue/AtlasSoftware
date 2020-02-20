@@ -2,13 +2,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "rocket.h"
+typedef rocket_t {
+    //state rocket is in for state control
+    uint8_t state = 0; 
+    //variables updated by accelTask
+    uint16_t accel;
+    //variables updated by barameterTask
+    uint16_t deltaT; 
+    uint16_t temp;
+    uint16_t off;
+    uint16_t sense;
+    uint16_t pressure;
+    
+    uint16_t gps;
 
-typedef struct {
-    int accel[3]; // acceleration in the x, y, and z directions
-    int baro; // barometric values
-    int gps; // values from GPS
-}
+};
+
+extern rocket_t rocket;
 
 void initRTOSObjects()
 {
@@ -18,52 +28,34 @@ void initRTOSObjects()
     xTaskCreate(accelTask, "Accelerometer Driver", 256, NULL, 1, NULL); //Change 256 and 1 to defines and determine proper values
     xTaskCreate(barometerTask, "Barometer Driver", 256, NULL, 1, NULL);
     xTaskCreate(gpsTask, "GPS Driver", 256, NULL, 1, NULL);
+    xTaskCreate(rocketTask, "Main State Machine", 256, NULL, 1, NULL);
 }
 
-/*
-    Init State -> Initializing the rocket, setting parameters, self testing sensors, calibrating servo position
-*/
-
+//Init State -> Initializing the rocket, setting parameters, self testing sensors, calibrating servo position
 int mainInit(void){
-    double servoPos;
-    double sensorStart = 0;  //value that a particular sensor to have initially
-    ////////////////////////////////////////////////////
-    //////////Starting rocket, don't know what goes here
-    ////////////////////////////////////////////////////
-    servoPos = getServoPos(); //calls function that returns current servo 
-    ///////////////////////////////////////////////////////////////////////////////
-    // CODE to insruct servos to rotate to rotate to straight downwards orientation
-    ///////////////////////////////////////////////////////////////////////////////
-    sensorCalibrate(sensorStart); //function that calibrates sensor reading to what it should be
+    initAccel();
+    barometerInit();
+    gpsInit();
 
     return(0);
 }
-/*
-    Awaiting State -> Checks values while drone is lifting rocket to final drop height
-*/
 
+//Awaiting State -> Time after initialization prior to "launch"
 int mainAwait(void){
     return(0);
+
 }
 
-/*
-    Ascend State -> Checks values while drone is lifting rocket to final drop height
-*/
 
+//Ascend State -> Checks values while drone is lifting rocket to final drop height
 int mainAscend(){
-    double height;  //height the rocket is above the ground
-    double maxHeight; //user input, hieght at which the rocket will be let go at
+    if( rocket_t.pressure >= rocket_t.maxPressure ){
+        rocket_t.state += 1;
 
-    while(height < maxHeight){
-        height = //read height value from sensors
     }
-    releaseRocket() //function that releases rocket
 } 
 
-/*
-    Fall State
-*/
-
+//Fall State
 int checkFall();
 int checkIgnition(double, double);
 void engineDeflectCalc();
@@ -150,10 +142,7 @@ void engineDeflectCalc(); {
   return();
 }
 
-/*
-    Land State
-*/
-
+//Land State
 int landMain(){
     return(0);
 }
@@ -171,39 +160,37 @@ int landMain(){
  * LAND -> Powers down sensors and enters low power mode
  * ERROR -> Handles cases when parameter values exceed proper limits
  */
-
 enum rocketState {INIT, AWAITING, ASCEND, FALL, LAND, ERROR}
 
 void rocketTask()
 {
-    enum rocketCurrentState = 0;
     while(1 == 1)
     {
-        switch(rocket.state)
+        switch((rocket_t.state))
         {
             case INIT:
                 mainInit();
-                rocketCurrentState++;
+                rocket.state++;
 
                 break;
             case AWAITING:
                 mainAwait();
-                rocketCurrentState++;
+                rocket.state++;
 
                 break;
             case ASCEND:
                 mainAscend();
-                rocketCurrentState++;
+                //rocket.state is incremented in mainAscend function when altitude exceeds target starting altitude
 
                 break;
             case FALL:
                 mainFall();
-                rocketCurrentState++;
+                rocket.state++;
 
                 break;
             case LAND:
                 mainLand();
-                rocketCurrentState++;
+                rocket.state++;
 
                 break;
             case ERROR:
