@@ -2,23 +2,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef rocket_t {
+typedef struct{
     //state rocket is in for state control
-    uint8_t state = 0; 
+    int state; 
     //variables updated by accelTask
-    uint16_t accel;
+    int accel;
     //variables updated by barameterTask
-    uint16_t deltaT; 
-    uint16_t temp;
-    uint16_t off;
-    uint16_t sense;
-    uint16_t pressure;
-    
-    uint16_t gps;
+    int deltaT; 
+    int temp;
+    int off;
+    int sense;
+    int pressure;
 
-};
+}rocket_t;
+typedef struct{
+  //variables updated by imu
+    int accelX;
+    int accelY;
+    int accelZ;
+    int gyroX;
+    int gyroY;
+    int gyroZ;
+
+}imu_t;
 
 extern rocket_t rocket;
+extern imu_t imu;
 
 void initRTOSObjects()
 {
@@ -28,6 +37,7 @@ void initRTOSObjects()
     xTaskCreate(accelTask, "Accelerometer Driver", 256, NULL, 1, NULL); //Change 256 and 1 to defines and determine proper values
     xTaskCreate(barometerTask, "Barometer Driver", 256, NULL, 1, NULL);
     xTaskCreate(gpsTask, "GPS Driver", 256, NULL, 1, NULL);
+    xTaskCreate(imuTask, "Imu Driver", 256, NULL, 1, NULL);
     xTaskCreate(rocketTask, "Main State Machine", 256, NULL, 1, NULL);
 }
 
@@ -36,6 +46,7 @@ int mainInit(void){
     initAccel();
     barometerInit();
     gpsInit();
+    imuInit();
 
     return(0);
 }
@@ -49,13 +60,14 @@ int mainAwait(void){
 
 //Ascend State -> Checks values while drone is lifting rocket to final drop height
 int mainAscend(){
-    if( rocket_t.pressure >= rocket_t.maxPressure ){
-        rocket_t.state += 1;
+    int maxPressure = 100; //placeholder for maximum height rocket has to reach before dropping
+    if( rocket.pressure >= maxPressure ){
+        rocket.state += 1;
 
     }
 } 
 
-//Fall State
+//Fall Statez
 int checkFall();
 int checkIgnition(double, double);
 void engineDeflectCalc();
@@ -81,7 +93,7 @@ int mainFall(void) {
     if (droneAttached == 0 && motorIgnited == 1 && burnComplete == 0) {
       engineDeflectCalc();
       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      // Code to reduce timeTillCutoff - I presume the board will have a clock of somesort, so whatever the time is, minus the the time during the last loop, subtract from timeTillCutoff
+      // Code to reduce timeTillCutoff - I presume the board will have a clock of some sort, so whatever the time is, minus the the time during the last loop, subtract from timeTillCutoff
       ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       if (timeTillCutoff < 0)
         burnComplete = 1;
@@ -93,9 +105,7 @@ int mainFall(void) {
   return(0);
 }
 int checkFall() {
-  double zAcceleration = -9.5; // zAcceleration is whatever the sensors report the current acceleration towards the ground is - I don't know how the sensors drivers work so I don't know how to code this, ask Dawson - -9.5 is a placeholder
-
-  if (zAcceleration < -9.5) { // If the acceleration is downwards at more than 9.5 m/s^2 (negative indicating downwards), return integer 0, meaning we are no long attached to the drone
+  if (rocket.accel < -9.5) { // If the acceleration is downwards at more than 9.5 m/s^2 (negative indicating downwards), return integer 0, meaning we are no long attached to the drone
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // BUZZER or LED Code - rocket needs to give off some indication that it now thinks it is falling, so that if it accidentally goes into this mode on the ground, we know it is armed
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,11 +115,10 @@ int checkFall() {
     return(1);
 }
 int checkIgnition(int burnTime, int avgAccel) {
-  double zVelocity = -7; // Current downwards velocity in m/s, again from the sensors, again ask Dawson how to get that information piped over to here, -7 is a placeholder
   double currentAlt = 23.4; // Current altitude above the ground in m, from barometer measurements, 23.4 is placeholder
   double fallDist; // How far the rocket will fall if the engine were to be ignited right now
 
-  fallDist = (zVelocity * burnTime) + (0.5 * avgAccel * burnTime ^ 2.0); // Calculates the value fo fallDist
+  fallDist = (rocket.accel * burnTime) + (0.5 * avgAccel * burnTime ^ 2.0); // Calculates the value fo fallDist
   if (fallDist > currentAlt) { // If the current altitude is a shorter distance than how far the rocket will fall during its burn, return 1, indicating that the engine should be started
     ///////////////////////
     // Engine Ignition Code
@@ -123,17 +132,11 @@ void engineDeflectCalc(); {
   double propGain = 1; // Gain factor for proportion measurements, 1 is placeholder
   double derivGain = 1; // Gain factor for derivative measurements, 1 is placeholder
 
-  double pitchAngle = 0.2; // Gyroscope measurement of current pitch angle in radians, 0.2 is placeholder
-  double pitchRate = -0.04; // Gyroscope measruement of current pitch angle rate of change in rad/s, -0.04 is placeholder
-
-  double yawAngle = 0.2; // Gyroscope measurement of current yaw angle in radians, 0.2 is placeholder
-  double yawRate = -0.04; // Gyroscope measruement of current yaw angle rate of change in rad/s, -0.04 is placeholder
-
   double pitchBeta; // Desired gimbal angle in the pitch axis
   double yawBeta; // Desired gimbal angle in the yaw axis
-
-  pitchBeta = (propGain * pitchAngle) + (derivGain * pitchRate); // Calculated desired gimbal pitch angle
-  yawBeta = (propGain * yawAngle) + (derivGain * yawRate); // Calculated desired gimbal yaw angle
+  
+  pitchBeta = (propGain * imu.gyroX) + (derivGain * imu.accelX); // Calculated desired gimbal pitch angle
+  yawBeta = (propGain * imu.gyroY) + (derivGain * imu.accelY); // Calculated desired gimbal yaw angle
 
   ///////////////////////////////////////////////////////////////////////////////
   // CODE to insruct servos to rotate to the determined angle as fast as possible
@@ -164,9 +167,10 @@ enum rocketState {INIT, AWAITING, ASCEND, FALL, LAND, ERROR}
 
 void rocketTask()
 {
+    rocket.state = 0;
     while(1 == 1)
     {
-        switch((rocket_t.state))
+        switch((rocket.state))
         {
             case INIT:
                 mainInit();
