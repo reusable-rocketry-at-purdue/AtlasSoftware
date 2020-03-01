@@ -2,6 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Include core modules */
+#include "stm32f4xx.h"
+/* Include my libraries here */
+#include "defines.h"
+#include "tm_stm32f4_delay.h"
+#include "tm_stm32f4_servo.h"
+
 typedef struct{
     //state rocket is in for state control
     int state; 
@@ -37,25 +44,19 @@ void initRTOSObjects()
     xTaskCreate(imuTask, "Imu Driver", 256, NULL, 1, NULL);
     xTaskCreate(rocketTask, "Main State Machine", 256, NULL, 1, NULL);
 }
-
-//Init State -> Initializing the rocket, setting parameters, self testing sensors, calibrating servo position
 int mainInit(void){
     initAccel();
     barometerInit();
     gpsInit();
     imuInit();
+    FM_Led_Init());
 
     return(0);
 }
-
-//Awaiting State -> Time after initialization prior to "launch"
 int mainAwait(void){
     return(0);
 
 }
-
-
-//Ascend State -> Checks values while drone is lifting rocket to final drop height
 int mainAscend(){
     int maxAlt = 100; //placeholder for maximum altitude rocket has to reach before dropping
     if( rocket.alt >= maxAlt ){
@@ -63,12 +64,9 @@ int mainAscend(){
 
     }
 } 
-
-//Fall Statez
-
 void engineDeflectCalc();
 
-int main(void){
+int mainDrop(void){
     double burnTime = 2.3; // Predetermined value for how long the engine will burn for in seconds - 2.3 is a placeholder value
     double avgAccel = 6.4; // Predetermined vlaue for the average acceleration the rocket will undergo during the burn phase - 6.4 is a placeholder value
 
@@ -77,9 +75,8 @@ int main(void){
     double timeTillCutOff = burnTime; // How much time there is left for the engine to burn, starts to count down when the engine is ignited
 
     while(rocket.accelZ < -9.5){
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // BUZZER or LED Code - rocket needs to give off some indication that it now thinks it is falling, so that if it accidentally goes into this mode on the ground, we know it is armed
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+        FM_LED_Toggle(0);   //should light up LED
+
     }
     do{
         fallDist = (rocket.veloZ * burnTime) + (0.5 * avgAccel * burnTime ^ 2.0); // Calculates the value fo fallDist
@@ -107,19 +104,16 @@ void engineDeflectCalc() {
   pitchBeta = (propGain * rocket.pitchAngle) + (derivGain * rocket.pitchVelo); // Calculated desired gimbal pitch angle
   yawBeta = (propGain * rocket.yawAngle) + (derivGain * rocket.yawVelo); // Calculated desired gimbal yaw angle
 
-  ///////////////////////////////////////////////////////////////////////////////
-  // CODE to insruct servos to rotate to the determined angle as fast as possible
-  ///////////////////////////////////////////////////////////////////////////////
+  TM_SERVO_SetDegrees(&pitchServo, pitchBeta);
+  TM_SERVO_SetDegrees(&yawServo, yawBeta);
 
   return();
 }
-
 
 //Land State
 int landMain(){
     return(0);
 }
-
 /*
  * rocketTask()
  *
@@ -135,9 +129,16 @@ int landMain(){
  */
 enum rocketState {INIT, AWAITING, ASCEND, FALL, LAND, ERROR};
 
-void rocketTask()
+void main()
 {
+    TM_SERVO_t pitchServo, yawServo;
+
+    TM_DELAY_Init();
+    TM_SERVO_Init(&pitchServo, TIM2, TM_PWM_Channel_1, TM_PWM_PinsPack_2);
+    TM_SERVO_Init(&yawServo, TIM2, TM_PWM_Channel_2, TM_PWM_PinsPack_2);
+ 
     rocket.state = 0;
+
     while(1 == 1)
     {
         switch((rocket.state))
