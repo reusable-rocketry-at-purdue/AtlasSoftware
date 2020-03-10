@@ -9,6 +9,9 @@
 #include "tm_stm32f4_delay.h"
 #include "tm_stm32f4_servo.h"
 
+#define servo_MAX_pos 2000
+#define servo_MIN_pos 1000
+
 typedef struct{
     //state rocket is in for state control
     int state; 
@@ -49,7 +52,6 @@ int mainInit(void){
     barometerInit();
     gpsInit();
     imuInit();
-    FM_Led_Init());
 
     return(0);
 }
@@ -100,12 +102,18 @@ void engineDeflectCalc() {
 
   double pitchBeta; // Desired gimbal angle in the pitch axis
   double yawBeta; // Desired gimbal angle in the yaw axis
+  
+  int pitchPosition; //servo position for servo that controls pitch direction
+  int yawPosition; //servo position for servo that controls yaw direction
 
   pitchBeta = (propGain * rocket.pitchAngle) + (derivGain * rocket.pitchVelo); // Calculated desired gimbal pitch angle
   yawBeta = (propGain * rocket.yawAngle) + (derivGain * rocket.yawVelo); // Calculated desired gimbal yaw angle
 
-  TM_SERVO_SetDegrees(&pitchServo, pitchBeta);
-  TM_SERVO_SetDegrees(&yawServo, yawBeta);
+  pitchPosition = 1500 + pitchBeta * (500/90);
+  yawPosition   = 1500 + yawBeta * (500/90);
+
+  TM_PWM_SetChannelMicros(&TIM2_Data, TM_PWM_Channel_1, pitchPosition);
+  TM_PWM_SetChannelMicros(&TIM4_Data, TM_PWM_Channel_2, yawPosition);
 
   return();
 }
