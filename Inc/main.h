@@ -80,6 +80,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -88,6 +90,32 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SERVOX_Pin GPIO_PIN_0
+#define SERVOX_GPIO_Port GPIOA
+#define SERVOY_Pin GPIO_PIN_1
+#define SERVOY_GPIO_Port GPIOA
+#define ARM_Pin GPIO_PIN_12
+#define ARM_GPIO_Port GPIOB
+#define CS_ACCEL_Pin GPIO_PIN_8
+#define CS_ACCEL_GPIO_Port GPIOD
+#define CS_BARO_Pin GPIO_PIN_9
+#define CS_BARO_GPIO_Port GPIOD
+#define IGNITE_Pin GPIO_PIN_10
+#define IGNITE_GPIO_Port GPIOD
+#define LED1_Pin GPIO_PIN_11
+#define LED1_GPIO_Port GPIOD
+#define LED2_Pin GPIO_PIN_12
+#define LED2_GPIO_Port GPIOD
+#define LED3_Pin GPIO_PIN_13
+#define LED3_GPIO_Port GPIOD
+#define LED4_Pin GPIO_PIN_14
+#define LED4_GPIO_Port GPIOD
+#define DROP_Pin GPIO_PIN_15
+#define DROP_GPIO_Port GPIOD
+#define GPS_TX_Pin GPIO_PIN_10
+#define GPS_TX_GPIO_Port GPIOC
+#define GPS_RX_Pin GPIO_PIN_11
+#define GPS_RX_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
